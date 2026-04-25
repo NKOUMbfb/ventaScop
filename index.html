@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VentaScope — Collecte & Analyse des Ventes</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1c1c28;
+  --border: #2a2a3d;
+  --accent: #f0c040;
+  --accent2: #e05c3a;
+  --accent3: #4ecdc4;
+  --text: #e8e8f0;
+  --text-dim: #8888aa;
+  --text-muted: #55556a;
+  --success: #4ecdc4;
+  --danger: #e05c3a;
+  --radius: 12px;
+  --radius-lg: 20px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Background grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(240,192,64,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240,192,64,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ====== HEADER ====== */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,15,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 12px;
+}
+.logo-icon {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 16px;
+  color: #0a0a0f;
+}
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: 1.2rem;
+  letter-spacing: -0.5px;
+}
+.logo-text span { color: var(--accent); }
+
+.nav-tabs {
+  display: flex; gap: 4px;
+  background: var(--surface);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.nav-tab {
+  padding: 6px 16px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+  color: var(--text-dim);
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+  border: none; background: transparent;
+}
+.nav-tab.active {
+  background: var(--accent);
+  color: #0a0a0f;
+}
+.nav-tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+.header-right {
+  display: flex; align-items: center; gap: 12px;
+}
+.record-count {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+.record-count strong { color: var(--accent); }
+
+/* ====== MAIN ====== */
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative; z-index: 1;
+}
+
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.3s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ====== HERO ====== */
+.hero {
+  text-align: center;
+  padding: 3rem 0 2rem;
+}
+.hero-eyebrow {
+  display: inline-block;
+  font-size: 0.7rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid rgba(240,192,64,0.3);
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 1rem;
+}
+.hero h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  margin-bottom: 1rem;
+}
+.hero h1 em {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  color: var(--accent);
+}
+.hero p {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  max-width: 480px;
+  margin: 0 auto 2rem;
+  line-height: 1.7;
+}
+
+/* ====== FORM ====== */
+.form-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.form-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.form-header h2 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700; font-size: 1.1rem;
+}
+.form-header .tag {
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.form-body { padding: 2rem; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+
+label {
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+input, select, textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(240,192,64,0.1);
+}
+select option { background: var(--surface); }
+textarea { resize: vertical; min-height: 80px; }
+
+.form-actions {
+  display: flex; justify-content: flex-end; gap: 12px;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.btn {
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  letter-spacing: 0.5px;
+}
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #0a0a0f;
+  font-weight: 700;
+}
+.btn-primary:hover { background: #ffd060; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(240,192,64,0.3); }
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: 0.75rem;
+  padding: 6px 14px;
+}
+.btn-danger:hover { background: var(--danger); color: white; }
+
+/* ====== SUCCESS TOAST ====== */
+.toast {
+  position: fixed; bottom: 2rem; right: 2rem;
+  background: var(--surface2);
+  border: 1px solid var(--success);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.82rem;
+  z-index: 999;
+  transform: translateY(80px); opacity: 0;
+  transition: all 0.3s ease;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+
+/* ====== DATA TABLE ====== */
+.table-controls {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
+}
+.search-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  flex: 1; max-width: 320px;
+}
+.search-box input {
+  background: transparent; border: none; box-shadow: none;
+  padding: 0; font-size: 0.82rem; color: var(--text);
+}
+.search-box input:focus { box-shadow: none; border: none; }
+.search-icon { color: var(--text-muted); font-size: 0.9rem; }
+
+.export-btn {
+  padding: 8px 18px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: var(--radius);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.export-btn:hover { background: rgba(240,192,64,0.1); }
+
+.data-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.data-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(42,42,61,0.5);
+  color: var(--text);
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: rgba(240,192,64,0.03); }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+.badge-green { background: rgba(78,205,196,0.15); color: var(--accent3); }
+.badge-orange { background: rgba(240,192,64,0.15); color: var(--accent); }
+.badge-red { background: rgba(224,92,58,0.15); color: var(--accent2); }
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-muted);
+}
+.empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
+.empty-state p { font-size: 0.85rem; }
+
+/* ====== STATS CARDS ====== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+.stat-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.stat-card:nth-child(2)::before { background: var(--accent2); }
+.stat-card:nth-child(3)::before { background: var(--accent3); }
+.stat-card:nth-child(4)::before { background: #a78bfa; }
+
+.stat-label {
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+.stat-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ====== CHARTS ====== */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+.chart-card.full { grid-column: 1 / -1; }
+.chart-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 1.2rem;
+  color: var(--text);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.chart-title span { font-size: 0.72rem; color: var(--text-muted); font-family: 'DM Mono', monospace; font-weight: 400; }
+.chart-wrap { position: relative; height: 220px; }
+.chart-wrap.tall { height: 280px; }
+
+/* ====== DESCRIPTIVE STATS TABLE ====== */
+.desc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.desc-table th {
+  padding: 10px 14px;
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.desc-table th:first-child { text-align: left; }
+.desc-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(42,42,61,0.4);
+  text-align: right;
+  color: var(--text);
+}
+.desc-table td:first-child { text-align: left; color: var(--accent); }
+.desc-table tr:last-child td { border-bottom: none; }
+
+/* ====== PAGE HEADER ====== */
+.page-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 2rem;
+}
+.page-header h2 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800; font-size: 1.8rem;
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+.page-header h2 em {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  color: var(--accent);
+}
+.page-header p { font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; }
+
+/* ====== RESPONSIVE ====== */
+@media (max-width: 768px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .nav-tabs { display: none; }
+  main { padding: 1rem; }
+}
+
+/* ====== PAGINATION ====== */
+.pagination {
+  display: flex; justify-content: center; align-items: center; gap: 8px;
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+}
+.page-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-family: 'DM Mono', monospace;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+}
+.page-btn.active { background: var(--accent); color: #0a0a0f; border-color: var(--accent); font-weight: 700; }
+.page-btn:hover:not(.active) { border-color: var(--text-dim); color: var(--text); }
+
+/* ====== MOBILE NAV ====== */
+.mobile-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(10,10,15,0.95);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  z-index: 100;
+}
+@media (max-width: 768px) {
+  .mobile-nav { display: flex; }
+  body { padding-bottom: 70px; }
+}
+.mobile-nav-btn {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  padding: 6px;
+  cursor: pointer; background: transparent; border: none;
+  color: var(--text-muted); font-family: 'DM Mono', monospace;
+  font-size: 0.6rem; transition: color 0.2s;
+}
+.mobile-nav-btn.active { color: var(--accent); }
+.mobile-nav-btn .icon { font-size: 1.2rem; }
+
+/* Number input no arrows */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">VS</div>
+    <div class="logo-text">Venta<span>Scope</span></div>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="goTo('saisie')">➕ Saisie</button>
+    <button class="nav-tab" onclick="goTo('donnees')">📋 Données</button>
+    <button class="nav-tab" onclick="goTo('analyse')">📊 Analyse</button>
+  </nav>
+  <div class="header-right">
+    <div class="record-count">
+      <strong id="header-count">0</strong> enregistrements
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main>
+
+  <!-- PAGE : SAISIE -->
+  <div class="page active" id="page-saisie">
+    <div class="hero">
+      <div class="hero-eyebrow">INF 232 — EC2 · TP Collecte</div>
+      <h1>Collecte des <em>données</em><br>de ventes</h1>
+      <p>Saisissez vos transactions commerciales. L'analyse descriptive se met à jour automatiquement.</p>
+    </div>
+
+    <div class="form-card">
+      <div class="form-header">
+        <h2>Nouvelle transaction</h2>
+        <span class="tag">Formulaire de saisie</span>
+      </div>
+      <div class="form-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Date de vente *</label>
+            <input type="date" id="f-date" required>
+          </div>
+          <div class="form-group">
+            <label>Vendeur *</label>
+            <input type="text" id="f-vendeur" placeholder="Nom du vendeur" required>
+          </div>
+          <div class="form-group">
+            <label>Produit / Service *</label>
+            <input type="text" id="f-produit" placeholder="Ex: Laptop Dell, Forfait Pro…" required>
+          </div>
+          <div class="form-group">
+            <label>Catégorie</label>
+            <select id="f-categorie">
+              <option value="">— Choisir —</option>
+              <option>Électronique</option>
+              <option>Vêtements</option>
+              <option>Alimentation</option>
+              <option>Services</option>
+              <option>Mobilier</option>
+              <option>Informatique</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Quantité *</label>
+            <input type="number" id="f-quantite" placeholder="0" min="1" required>
+          </div>
+          <div class="form-group">
+            <label>Prix unitaire (FCFA) *</label>
+            <input type="number" id="f-prix" placeholder="0" min="0" step="0.01" required>
+          </div>
+          <div class="form-group">
+            <label>Région / Zone</label>
+            <select id="f-region">
+              <option value="">— Choisir —</option>
+              <option>Centre</option>
+              <option>Littoral</option>
+              <option>Ouest</option>
+              <option>Nord</option>
+              <option>Sud</option>
+              <option>Adamaoua</option>
+              <option>Est</option>
+              <option>Nord-Ouest</option>
+              <option>Sud-Ouest</option>
+              <option>Extrême-Nord</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Canal de vente</label>
+            <select id="f-canal">
+              <option value="">— Choisir —</option>
+              <option>Boutique physique</option>
+              <option>En ligne</option>
+              <option>Téléphone</option>
+              <option>Partenaire</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select id="f-statut">
+              <option value="Complétée">Complétée</option>
+              <option value="En attente">En attente</option>
+              <option value="Annulée">Annulée</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Client (optionnel)</label>
+            <input type="text" id="f-client" placeholder="Nom ou réf. client">
+          </div>
+          <div class="form-group full">
+            <label>Remarques</label>
+            <textarea id="f-remarques" placeholder="Observations, conditions particulières…"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="resetForm()">Effacer</button>
+          <button class="btn btn-primary" onclick="submitForm()">✓ Enregistrer la vente</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE : DONNÉES -->
+  <div class="page" id="page-donnees">
+    <div class="page-header">
+      <div>
+        <h2>Base de <em>données</em></h2>
+        <p>Toutes les transactions enregistrées</p>
+      </div>
+    </div>
+
+    <div class="table-controls">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Rechercher…" oninput="renderTable()">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="export-btn" onclick="exportJSON()" style="border-color:var(--accent3);color:var(--accent3)">⬇ Export JSON</button>
+      </div>
+    </div>
+
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Vendeur</th>
+            <th>Produit</th>
+            <th>Catégorie</th>
+            <th>Qté</th>
+            <th>P.U (FCFA)</th>
+            <th>Total (FCFA)</th>
+            <th>Région</th>
+            <th>Canal</th>
+            <th>Statut</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+        </tbody>
+      </table>
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">📦</div>
+        <p>Aucune donnée. Commencez par saisir une vente.</p>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <!-- PAGE : ANALYSE -->
+  <div class="page" id="page-analyse">
+    <div class="page-header">
+      <div>
+        <h2>Analyse <em>descriptive</em></h2>
+        <p>Statistiques et visualisations automatiques</p>
+      </div>
+      <button class="btn btn-primary" onclick="renderAnalyse()" style="font-size:0.75rem;padding:8px 16px;">↻ Actualiser</button>
+    </div>
+
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total ventes</div><div class="stat-value" id="s-total">0</div><div class="stat-sub">enregistrements</div></div>
+      <div class="stat-card"><div class="stat-label">Chiffre d'affaires</div><div class="stat-value" id="s-ca">0</div><div class="stat-sub">FCFA (total)</div></div>
+      <div class="stat-card"><div class="stat-label">Vente moyenne</div><div class="stat-value" id="s-moy">0</div><div class="stat-sub">FCFA par transaction</div></div>
+      <div class="stat-card"><div class="stat-label">Vente max</div><div class="stat-value" id="s-max">0</div><div class="stat-sub">FCFA (transaction)</div></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Ventes par catégorie <span>répartition</span></div>
+        <div class="chart-wrap"><canvas id="chart-cat"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Ventes par région <span>montants</span></div>
+        <div class="chart-wrap"><canvas id="chart-region"></canvas></div>
+      </div>
+      <div class="chart-card full">
+        <div class="chart-title">Évolution du chiffre d'affaires <span>par date</span></div>
+        <div class="chart-wrap tall"><canvas id="chart-time"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Répartition par canal <span>de vente</span></div>
+        <div class="chart-wrap"><canvas id="chart-canal"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Statuts des transactions <span>distribution</span></div>
+        <div class="chart-wrap"><canvas id="chart-statut"></canvas></div>
+      </div>
+    </div>
+
+    <div class="form-card" style="margin-top:0">
+      <div class="form-header">
+        <h2>Statistiques descriptives — Montants (FCFA)</h2>
+        <span class="tag">Calculs automatiques</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="desc-table" id="desc-table">
+          <thead>
+            <tr>
+              <th>Indicateur</th>
+              <th>Prix unitaire</th>
+              <th>Quantité</th>
+              <th>Montant total</th>
+            </tr>
+          </thead>
+          <tbody id="desc-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav">
+  <button class="mobile-nav-btn active" id="mnav-saisie" onclick="goTo('saisie')">
+    <span class="icon">➕</span>Saisie
+  </button>
+  <button class="mobile-nav-btn" id="mnav-donnees" onclick="goTo('donnees')">
+    <span class="icon">📋</span>Données
+  </button>
+  <button class="mobile-nav-btn" id="mnav-analyse" onclick="goTo('analyse')">
+    <span class="icon">📊</span>Analyse
+  </button>
+</nav>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-dot"></div>
+  <span id="toast-msg">Vente enregistrée avec succès !</span>
+</div>
+
+<script>
+// ============ DATA STORE ============
+let data = JSON.parse(localStorage.getItem('ventascope_data') || '[]');
+let currentPage = 1;
+const PER_PAGE = 10;
+let charts = {};
+
+// ============ NAVIGATION ============
+function goTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+
+  document.getElementById('page-' + page).classList.add('active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  const map = { saisie: 0, donnees: 1, analyse: 2 };
+  if (tabs[map[page]]) tabs[map[page]].classList.add('active');
+  const mb = document.getElementById('mnav-' + page);
+  if (mb) mb.classList.add('active');
+
+  if (page === 'donnees') renderTable();
+  if (page === 'analyse') renderAnalyse();
+}
+
+// ============ FORM ============
+function submitForm() {
+  const date = document.getElementById('f-date').value;
+  const vendeur = document.getElementById('f-vendeur').value.trim();
+  const produit = document.getElementById('f-produit').value.trim();
+  const quantite = parseInt(document.getElementById('f-quantite').value);
+  const prix = parseFloat(document.getElementById('f-prix').value);
+
+  if (!date || !vendeur || !produit || isNaN(quantite) || isNaN(prix)) {
+    showToast('⚠ Veuillez remplir tous les champs obligatoires.', true);
+    return;
+  }
+
+  const record = {
+    id: Date.now(),
+    date,
+    vendeur,
+    produit,
+    categorie: document.getElementById('f-categorie').value || 'Autre',
+    quantite,
+    prix,
+    total: quantite * prix,
+    region: document.getElementById('f-region').value || 'Non définie',
+    canal: document.getElementById('f-canal').value || 'Non défini',
+    statut: document.getElementById('f-statut').value,
+    client: document.getElementById('f-client').value.trim() || '—',
+    remarques: document.getElementById('f-remarques').value.trim(),
+  };
+
+  data.push(record);
+  save();
+  resetForm();
+  updateCount();
+  showToast('✓ Vente enregistrée avec succès !');
+}
+
+function resetForm() {
+  ['f-date','f-vendeur','f-produit','f-categorie','f-quantite','f-prix',
+   'f-region','f-canal','f-client','f-remarques'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('f-statut').value = 'Complétée';
+}
+
+function deleteRecord(id) {
+  if (!confirm('Supprimer cet enregistrement ?')) return;
+  data = data.filter(r => r.id !== id);
+  save();
+  updateCount();
+  renderTable();
+}
+
+// ============ TABLE ============
+function renderTable() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase();
+  let filtered = data.filter(r =>
+    r.vendeur.toLowerCase().includes(q) ||
+    r.produit.toLowerCase().includes(q) ||
+    r.categorie.toLowerCase().includes(q) ||
+    r.region.toLowerCase().includes(q) ||
+    r.statut.toLowerCase().includes(q)
+  );
+
+  const tbody = document.getElementById('table-body');
+  const empty = document.getElementById('empty-state');
+  const pag = document.getElementById('pagination');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    pag.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  if (currentPage > totalPages) currentPage = totalPages;
+  const slice = filtered.slice((currentPage-1)*PER_PAGE, currentPage*PER_PAGE);
+
+  tbody.innerHTML = slice.map((r, i) => `
+    <tr>
+      <td style="color:var(--text-muted)">${(currentPage-1)*PER_PAGE + i + 1}</td>
+      <td>${r.date}</td>
+      <td>${r.vendeur}</td>
+      <td>${r.produit}</td>
+      <td><span class="badge badge-orange">${r.categorie}</span></td>
+      <td>${r.quantite}</td>
+      <td>${fmt(r.prix)}</td>
+      <td style="color:var(--accent);font-weight:600">${fmt(r.total)}</td>
+      <td>${r.region}</td>
+      <td>${r.canal}</td>
+      <td><span class="badge ${r.statut==='Complétée'?'badge-green':r.statut==='En attente'?'badge-orange':'badge-red'}">${r.statut}</span></td>
+      <td><button class="btn btn-danger" onclick="deleteRecord(${r.id})">✕</button></td>
+    </tr>
+  `).join('');
+
+  // Pagination
+  pag.innerHTML = '';
+  if (totalPages <= 1) return;
+  for (let p = 1; p <= totalPages; p++) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (p === currentPage ? ' active' : '');
+    btn.textContent = p;
+    btn.onclick = () => { currentPage = p; renderTable(); };
+    pag.appendChild(btn);
+  }
+}
+
+// ============ ANALYSE ============
+function renderAnalyse() {
+  if (data.length === 0) {
+    document.getElementById('s-total').textContent = '0';
+    document.getElementById('s-ca').textContent = '0';
+    document.getElementById('s-moy').textContent = '0';
+    document.getElementById('s-max').textContent = '0';
+    document.getElementById('desc-tbody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:2rem">Aucune donnée disponible</td></tr>';
+    return;
+  }
+
+  const totals = data.filter(r => r.statut !== 'Annulée').map(r => r.total);
+  const ca = totals.reduce((a,b)=>a+b,0);
+  const moy = ca / totals.length;
+  const maxV = Math.max(...totals);
+
+  document.getElementById('s-total').textContent = data.length;
+  document.getElementById('s-ca').textContent = fmtShort(ca);
+  document.getElementById('s-moy').textContent = fmtShort(moy);
+  document.getElementById('s-max').textContent = fmtShort(maxV);
+
+  // Charts
+  drawCatChart();
+  drawRegionChart();
+  drawTimeChart();
+  drawCanalChart();
+  drawStatutChart();
+  drawDescTable();
+}
+
+function groupBy(arr, key) {
+  return arr.reduce((acc, r) => {
+    const k = r[key] || 'Autre';
+    acc[k] = (acc[k] || 0) + r.total;
+    return acc;
+  }, {});
+}
+
+function countBy(arr, key) {
+  return arr.reduce((acc, r) => {
+    const k = r[key] || 'Autre';
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+const COLORS = ['#f0c040','#e05c3a','#4ecdc4','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa','#facc15','#c084fc'];
+
+function makeChart(id, type, labels, values, label='Montant') {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (charts[id]) { charts[id].destroy(); }
+  const isDark = true;
+  charts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        label,
+        data: values,
+        backgroundColor: type === 'line' ? 'rgba(240,192,64,0.15)' : COLORS,
+        borderColor: type === 'line' ? '#f0c040' : COLORS,
+        borderWidth: type === 'line' ? 2 : 1,
+        fill: type === 'line',
+        tension: 0.4,
+        pointBackgroundColor: '#f0c040',
+        pointRadius: type === 'line' ? 4 : 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: type === 'doughnut' || type === 'pie', labels: { color: '#8888aa', font: { family: 'DM Mono', size: 11 }, padding: 12 } },
+        tooltip: {
+          backgroundColor: '#1c1c28', borderColor: '#2a2a3d', borderWidth: 1,
+          titleColor: '#f0c040', bodyColor: '#e8e8f0',
+          callbacks: {
+            label: ctx => ' ' + (type === 'doughnut'||type==='pie' ? ctx.label + ': ' + ctx.raw : fmt(ctx.raw) + ' FCFA')
+          }
+        }
+      },
+      scales: type !== 'doughnut' && type !== 'pie' ? {
+        x: { ticks: { color: '#55556a', font: { family: 'DM Mono', size: 10 } }, grid: { color: 'rgba(42,42,61,0.5)' } },
+        y: { ticks: { color: '#55556a', font: { family: 'DM Mono', size: 10 }, callback: v => fmtShort(v) }, grid: { color: 'rgba(42,42,61,0.5)' } }
+      } : {}
+    }
+  });
+}
+
+function drawCatChart() {
+  const g = groupBy(data, 'categorie');
+  makeChart('chart-cat', 'doughnut', Object.keys(g), Object.values(g));
+}
+function drawRegionChart() {
+  const g = groupBy(data, 'region');
+  const sorted = Object.entries(g).sort((a,b)=>b[1]-a[1]);
+  makeChart('chart-region', 'bar', sorted.map(x=>x[0]), sorted.map(x=>x[1]), 'CA (FCFA)');
+}
+function drawTimeChart() {
+  const byDate = {};
+  data.filter(r=>r.statut!=='Annulée').forEach(r => {
+    byDate[r.date] = (byDate[r.date] || 0) + r.total;
+  });
+  const sorted = Object.entries(byDate).sort((a,b)=>a[0].localeCompare(b[0]));
+  makeChart('chart-time', 'line', sorted.map(x=>x[0]), sorted.map(x=>x[1]), 'CA (FCFA)');
+}
+function drawCanalChart() {
+  const g = countBy(data, 'canal');
+  makeChart('chart-canal', 'pie', Object.keys(g), Object.values(g));
+}
+function drawStatutChart() {
+  const g = countBy(data, 'statut');
+  makeChart('chart-statut', 'bar', Object.keys(g), Object.values(g), 'Nb transactions');
+}
+
+function drawDescTable() {
+  const prix = data.map(r=>r.prix);
+  const qte = data.map(r=>r.quantite);
+  const tot = data.map(r=>r.total);
+
+  const stats = (arr) => {
+    const n = arr.length;
+    const sum = arr.reduce((a,b)=>a+b,0);
+    const mean = sum/n;
+    const sorted = [...arr].sort((a,b)=>a-b);
+    const med = n%2===0 ? (sorted[n/2-1]+sorted[n/2])/2 : sorted[Math.floor(n/2)];
+    const variance = arr.reduce((a,b)=>a+(b-mean)**2,0)/n;
+    const std = Math.sqrt(variance);
+    return { n, sum, mean, median: med, std, min: sorted[0], max: sorted[n-1], q1: sorted[Math.floor(n*0.25)], q3: sorted[Math.floor(n*0.75)] };
+  };
+
+  const sp = stats(prix), sq = stats(qte), st = stats(tot);
+  const rows = [
+    ['Effectif (N)', sp.n, sq.n, st.n],
+    ['Minimum', fmt(sp.min), fmt(sq.min), fmt(st.min)],
+    ['Maximum', fmt(sp.max), fmt(sq.max), fmt(st.max)],
+    ['Somme', fmt(sp.sum), fmt(sq.sum), fmt(st.sum)],
+    ['Moyenne (μ)', fmt(sp.mean), fmt(sq.mean,2), fmt(st.mean)],
+    ['Médiane', fmt(sp.median), fmt(sq.median,2), fmt(st.median)],
+    ['Écart-type (σ)', fmt(sp.std), fmt(sq.std,2), fmt(st.std)],
+    ['Q1 (25e percentile)', fmt(sp.q1), fmt(sq.q1,2), fmt(st.q1)],
+    ['Q3 (75e percentile)', fmt(sp.q3), fmt(sq.q3,2), fmt(st.q3)],
+  ];
+
+  document.getElementById('desc-tbody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${r[0]}</td>
+      <td>${r[1]}</td>
+      <td>${r[2]}</td>
+      <td>${r[3]}</td>
+    </tr>
+  `).join('');
+}
+
+// ============ EXPORT ============
+function exportCSV() {
+  if (!data.length) return showToast('Aucune donnée à exporter.', true);
+  const headers = ['ID','Date','Vendeur','Produit','Catégorie','Quantité','Prix unitaire','Total','Région','Canal','Statut','Client','Remarques'];
+  const rows = data.map(r => [r.id,r.date,r.vendeur,r.produit,r.categorie,r.quantite,r.prix,r.total,r.region,r.canal,r.statut,r.client,r.remarques]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  download('ventes_data.csv', csv, 'text/csv');
+  showToast('✓ Export CSV réussi !');
+}
+
+function exportJSON() {
+  if (!data.length) return showToast('Aucune donnée à exporter.', true);
+  download('ventes_data.json', JSON.stringify(data, null, 2), 'application/json');
+  showToast('✓ Export JSON réussi !');
+}
+
+function download(filename, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = filename;
+  a.click();
+}
+
+// ============ UTILS ============
+function fmt(n, dec=0) {
+  if (isNaN(n)) return '—';
+  return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function fmtShort(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + ' Md';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + ' M';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + ' K';
+  return fmt(n);
+}
+
+function save() {
+  localStorage.setItem('ventascope_data', JSON.stringify(data));
+}
+function updateCount() {
+  document.getElementById('header-count').textContent = data.length;
+}
+
+let toastTimer;
+function showToast(msg, error=false) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.style.borderColor = error ? 'var(--accent2)' : 'var(--success)';
+  t.querySelector('.toast-dot').style.background = error ? 'var(--accent2)' : 'var(--success)';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ============ INIT ============
+function init() {
+  updateCount();
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = today;
+
+  // Charger données démo si vide
+  if (data.length === 0) loadDemoData();
+}
+
+function loadDemoData() {
+  const demo = [
+    { id: 1, date: '2025-01-05', vendeur: 'Alima Ngo', produit: 'Laptop Dell', categorie: 'Informatique', quantite: 2, prix: 450000, total: 900000, region: 'Centre', canal: 'Boutique physique', statut: 'Complétée', client: 'Société Bingo', remarques: '' },
+    { id: 2, date: '2025-01-08', vendeur: 'Boris Kamga', produit: 'Forfait Pro', categorie: 'Services', quantite: 5, prix: 85000, total: 425000, region: 'Littoral', canal: 'En ligne', statut: 'Complétée', client: 'SARL Étoile', remarques: '' },
+    { id: 3, date: '2025-01-12', vendeur: 'Alima Ngo', produit: 'Smartphone Tecno', categorie: 'Électronique', quantite: 3, prix: 120000, total: 360000, region: 'Ouest', canal: 'Boutique physique', statut: 'Complétée', client: 'Particulier', remarques: '' },
+    { id: 4, date: '2025-01-15', vendeur: 'Cédric Fouda', produit: 'Chaise bureau', categorie: 'Mobilier', quantite: 10, prix: 35000, total: 350000, region: 'Centre', canal: 'Partenaire', statut: 'En attente', client: 'Admin Lycée', remarques: 'Livraison prévue' },
+    { id: 5, date: '2025-01-18', vendeur: 'Boris Kamga', produit: 'Imprimante HP', categorie: 'Informatique', quantite: 1, prix: 180000, total: 180000, region: 'Littoral', canal: 'En ligne', statut: 'Complétée', client: 'Cabinet ABC', remarques: '' },
+    { id: 6, date: '2025-02-02', vendeur: 'Diana Meka', produit: 'Sac cuir', categorie: 'Vêtements', quantite: 4, prix: 55000, total: 220000, region: 'Nord', canal: 'Boutique physique', statut: 'Complétée', client: 'Boutique Mode', remarques: '' },
+    { id: 7, date: '2025-02-10', vendeur: 'Cédric Fouda', produit: 'Tablette Samsung', categorie: 'Électronique', quantite: 2, prix: 210000, total: 420000, region: 'Sud', canal: 'Téléphone', statut: 'Complétée', client: 'École Primaire', remarques: '' },
+    { id: 8, date: '2025-02-14', vendeur: 'Alima Ngo', produit: 'Logiciel Compta', categorie: 'Informatique', quantite: 1, prix: 320000, total: 320000, region: 'Centre', canal: 'En ligne', statut: 'Annulée', client: 'PME Soleil', remarques: 'Commande annulée' },
+    { id: 9, date: '2025-03-01', vendeur: 'Boris Kamga', produit: 'Clim 1.5CV', categorie: 'Électronique', quantite: 2, prix: 280000, total: 560000, region: 'Littoral', canal: 'Boutique physique', statut: 'Complétée', client: 'Hôtel Palace', remarques: '' },
+    { id: 10, date: '2025-03-15', vendeur: 'Diana Meka', produit: 'Formation Excel', categorie: 'Services', quantite: 15, prix: 20000, total: 300000, region: 'Ouest', canal: 'En ligne', statut: 'Complétée', client: 'Groupe Banque', remarques: 'Session présentielle' },
+  ];
+  data = demo;
+  save();
+  updateCount();
+}
+
+init();
+</script>
+</body>
+</html>
